@@ -7,23 +7,6 @@ use std::io::{self, Write};
 use std::process::ExitCode;
 use std::time::SystemTime;
 
-/// `ote [<duck-username>]`
-fn parse_username() -> Result<Option<String>> {
-    // `args_os` instead of `args`: the latter panics on non-UTF-8 arguments.
-    let mut args = std::env::args_os().skip(1);
-
-    let username = args
-        .next()
-        .map(|a| a.into_string().map_err(|_| Error::Usage))
-        .transpose()?;
-
-    if args.next().is_some() {
-        Err(Error::Usage)
-    } else {
-        Ok(username)
-    }
-}
-
 /// Current local time as `YYYY-MM-DD HH:MM:SS`.
 fn local_timestamp() -> Result<String> {
     // Fallible counterparts of `Zoned::now()` and `.strftime().to_string()`,
@@ -35,18 +18,16 @@ fn local_timestamp() -> Result<String> {
 }
 
 async fn run() -> Result<()> {
-    let username = parse_username()?;
-    let client = reqwest::Client::builder().build()?;
+    if std::env::args_os().nth(1).is_some() {
+        return Err(Error::Usage);
+    }
 
-    let token = match std::env::var("DDG_TOKEN") {
-        Ok(t) => t,
-        Err(_) => {
-            let user = username.as_deref().ok_or(Error::Usage)?;
-            let t = duck::get_access_token(&client, user).await?;
-            writeln!(io::stderr(), "Save this: export DDG_TOKEN={t}")?;
-            t
-        }
-    };
+    let token = std::env::var("DDG_TOKEN")
+        .ok()
+        .filter(|t| !t.is_empty())
+        .ok_or(Error::MissingToken)?;
+
+    let client = reqwest::Client::builder().build()?;
 
     let alias = duck::generate_alias(&client, &token).await?;
 

@@ -14,11 +14,11 @@ pub enum Error {
     #[error("time error: {0}")]
     Time(#[from] jiff::Error),
 
-    #[error("usage: ote <duck-username> (or set DDG_TOKEN)")]
+    #[error("usage: ote")]
     Usage,
 
-    #[error("no passphrase entered")]
-    NoPassphrase,
+    #[error("DDG_TOKEN is not set")]
+    MissingToken,
 
     #[error("bitwarden: {0}")]
     Bitwarden(String),
