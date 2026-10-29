@@ -1,8 +1,8 @@
 # OTE
 
-Generate a [DuckDuckGo Email Protection](https://duckduckgo.com/email/) private address and save it to Bitwarden.
+Generate [DuckDuckGo Email Protection](https://duckduckgo.com/email/) private addresses and save them to Bitwarden.
 
-Each run creates a new `xxxx@duck.com` alias, prints it, and adds a login item `OTE YYYY-MM-DD HH:MM:SS` (with the alias as username) to the Bitwarden folder `OTE`, creating the folder if needed.
+Each generated `xxxx@duck.com` alias is printed and saved as a login item `OTE YYYY-MM-DD HH:MM:SS` (with the alias as username) in the Bitwarden folder `OTE`, which is created if needed.
 
 ## Requirements
 
@@ -35,20 +35,15 @@ ote 5      # five aliases, ~3s apart
 ```
 
 ```
-? Master password: [hidden]
 abc123@duck.com
 def456@duck.com
 ...
 Added 5 item(s) to Bitwarden
 ```
 
-`ote` asks for your Bitwarden master password on each run. To unlock once per shell instead, run:
-
-```sh
-export BW_SESSION=$(bw unlock --raw)
-```
-
-Aliases go to stdout and messages go to stderr, so `ote | wl-copy` (`ote | pbcopy` on macOS) copies just the address. All aliases are saved in a single `bw import`; if generation fails partway, the ones already generated are still saved.
+- **Bitwarden unlock:** `ote` uses `BW_SESSION` if it is set (e.g. by `export BW_SESSION=$(bw unlock --raw)`). Otherwise it runs `bw unlock` itself, which prompts for your master password.
+- **Output:** aliases go to stdout and messages to stderr, so `ote | wl-copy` (`ote | pbcopy` on macOS) copies just the addresses.
+- **Saving:** all aliases are saved in a single `bw import`. If generation fails partway, the ones already generated are still saved.
 
 ## Notes
 
