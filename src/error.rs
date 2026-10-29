@@ -14,7 +14,7 @@ pub enum Error {
     #[error("time error: {0}")]
     Time(#[from] jiff::Error),
 
-    #[error("usage: ote")]
+    #[error("usage: ote [<count>]")]
     Usage,
 
     #[error("DDG_TOKEN is not set")]

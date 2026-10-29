@@ -30,16 +30,25 @@ export DDG_TOKEN=...
 ## Usage
 
 ```sh
-export BW_SESSION=$(bw unlock --raw)
-ote
+ote        # one alias
+ote 5      # five aliases, ~3s apart
 ```
 
 ```
+? Master password: [hidden]
 abc123@duck.com
-Added to Bitwarden as "OTE 2026-10-29 10:19:31"
+def456@duck.com
+...
+Added 5 item(s) to Bitwarden
 ```
 
-The alias goes to stdout and messages go to stderr, so `ote | wl-copy` copies just the address.
+`ote` asks for your Bitwarden master password on each run. To unlock once per shell instead, run:
+
+```sh
+export BW_SESSION=$(bw unlock --raw)
+```
+
+Aliases go to stdout and messages go to stderr, so `ote | wl-copy` (`ote | pbcopy` on macOS) copies just the address. All aliases are saved in a single `bw import`; if generation fails partway, the ones already generated are still saved.
 
 ## Notes
 
