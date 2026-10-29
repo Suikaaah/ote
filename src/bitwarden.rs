@@ -3,6 +3,7 @@
 use crate::error::{Error, Result};
 use base64::{Engine, engine::general_purpose::STANDARD};
 use serde::Deserialize;
+use std::collections::HashSet;
 use std::fs;
 use std::io::{self, Write};
 use std::process::{Command, Stdio};
@@ -20,6 +21,16 @@ struct Folder {
     name: String,
 }
 
+#[derive(Deserialize)]
+struct Item {
+    login: Option<ItemLogin>,
+}
+
+#[derive(Deserialize)]
+struct ItemLogin {
+    username: Option<String>,
+}
+
 fn spawn_error(e: io::Error) -> Error {
     match e.kind() {
         io::ErrorKind::NotFound => Error::Bitwarden("`bw` not found in PATH".into()),
@@ -32,6 +43,8 @@ fn spawn_error(e: io::Error) -> Error {
 /// in a multi-threaded program.
 pub struct Vault {
     session: String,
+    /// `None` until looked up; then the ID of the folder `FOLDER`, if it exists.
+    folder: Option<Option<String>>,
 }
 
 impl Vault {
@@ -39,8 +52,13 @@ impl Vault {
     /// the master password on the terminal.
     pub fn unlock() -> Result<Self> {
         if let Some(session) = std::env::var("BW_SESSION").ok().filter(|s| !s.is_empty()) {
-            return Ok(Self { session });
+            return Ok(Self {
+                session,
+                folder: None,
+            });
         }
+
+        status!("Unlocking Bitwarden (BW_SESSION not set)...");
 
         // stdin and stderr stay on the terminal for the prompt; stdout is the key.
         let out = Command::new("bw")
@@ -53,7 +71,10 @@ impl Vault {
         let session = String::from_utf8_lossy(&out.stdout).trim().to_owned();
 
         if out.status.success() && !session.is_empty() {
-            Ok(Self { session })
+            Ok(Self {
+                session,
+                folder: None,
+            })
         } else {
             Err(Error::Bitwarden("unlock failed".into()))
         }
@@ -83,29 +104,59 @@ impl Vault {
         }
     }
 
-    /// ID of the Bitwarden folder named `name`, created if absent.
-    fn ensure_folder(&self, name: &str) -> Result<String> {
+    /// ID of the folder `FOLDER`, if it exists.
+    fn find_folder(&mut self) -> Result<Option<String>> {
+        if let Some(cached) = &self.folder {
+            return Ok(cached.clone());
+        }
+
         let folders: Vec<Folder> =
-            serde_json::from_slice(&self.bw(&["list", "folders", "--search", name])?)?;
+            serde_json::from_slice(&self.bw(&["list", "folders", "--search", FOLDER])?)?;
 
         // `--search` matches substrings, so look for an exact match.
-        match folders
+        let id = folders
             .into_iter()
-            .find(|f| f.name == name)
-            .and_then(|f| f.id)
-        {
-            Some(id) => Ok(id),
-            None => {
-                let encoded =
-                    STANDARD.encode(serde_json::to_vec(&serde_json::json!({ "name": name }))?);
-                let created: Folder =
-                    serde_json::from_slice(&self.bw(&["create", "folder", &encoded])?)?;
+            .find(|f| f.name == FOLDER)
+            .and_then(|f| f.id);
 
-                created
-                    .id
-                    .ok_or_else(|| Error::Bitwarden("created folder has no id".into()))
-            }
+        self.folder = Some(id.clone());
+
+        Ok(id)
+    }
+
+    /// ID of the folder `FOLDER`, created if absent.
+    fn ensure_folder(&mut self) -> Result<String> {
+        if let Some(id) = self.find_folder()? {
+            return Ok(id);
         }
+
+        let encoded = STANDARD.encode(serde_json::to_vec(&serde_json::json!({ "name": FOLDER }))?);
+        let created: Folder = serde_json::from_slice(&self.bw(&["create", "folder", &encoded])?)?;
+
+        let id = created
+            .id
+            .ok_or_else(|| Error::Bitwarden("created folder has no id".into()))?;
+        self.folder = Some(Some(id.clone()));
+
+        Ok(id)
+    }
+
+    /// Refresh the local copy of the vault, which `bw list` reads.
+    pub fn sync(&self) -> Result<()> {
+        self.bw(&["sync"]).map(drop)
+    }
+
+    /// `@duck.com` usernames of all login items in the vault, in any folder,
+    /// trimmed and lowercased. Read from the local copy of the vault (see `sync`).
+    pub fn existing_aliases(&self) -> Result<HashSet<String>> {
+        let items: Vec<Item> = serde_json::from_slice(&self.bw(&["list", "items"])?)?;
+
+        Ok(items
+            .into_iter()
+            .filter_map(|i| i.login?.username)
+            .map(|u| u.trim().to_lowercase())
+            .filter(|u| u.ends_with("@duck.com"))
+            .collect())
     }
 
     /// Write `json` to a private temporary file and `bw import` it.
@@ -129,8 +180,8 @@ impl Vault {
 
     /// Create one login item per entry (alias as username) in the folder
     /// `FOLDER`, as a single import.
-    pub fn add(&self, entries: &[Entry]) -> Result<()> {
-        let folder_id = self.ensure_folder(FOLDER)?;
+    pub fn add(&mut self, entries: &[Entry]) -> Result<()> {
+        let folder_id = self.ensure_folder()?;
         let template: serde_json::Value =
             serde_json::from_slice(&self.bw(&["get", "template", "item"])?)?;
 

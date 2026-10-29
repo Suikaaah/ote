@@ -31,18 +31,25 @@ export DDG_TOKEN=...
 
 ```sh
 ote        # one alias
-ote 5      # five aliases, ~3s apart
+ote 5      # up to five aliases, requested ~3s apart
 ```
 
 ```
+Checking Bitwarden for existing aliases...
+Found 4 @duck.com address(es) in Bitwarden
+[1/5] Requesting address...
 abc123@duck.com
+[2/5] Requesting address...
 def456@duck.com
-...
-Added 5 item(s) to Bitwarden
+[3/5] Requesting address...
+Stopped: xyz789@duck.com is already in Bitwarden (limit reached?)
+Saving 2 item(s) to Bitwarden...
+Registered 2 of 5 requested address(es)
 ```
 
 - **Bitwarden unlock:** `ote` uses `BW_SESSION` if it is set (e.g. by `export BW_SESSION=$(bw unlock --raw)`). Otherwise it runs `bw unlock` itself, which prompts for your master password.
-- **Output:** aliases go to stdout and messages to stderr, so `ote | wl-copy` (`ote | pbcopy` on macOS) copies just the addresses.
+- **Output:** new aliases go to stdout and progress messages to stderr, so `ote | wl-copy` (`ote | pbcopy` on macOS) copies just the addresses.
+- **Duplicates:** once you hit DuckDuckGo's limit, it returns addresses you already have instead of an error. `ote` stops at the first address repeated within the run or already used as a login username anywhere in your vault (any folder, case-insensitive), so `ote n` registers *at most* `n`. If Bitwarden can't be checked, `ote` warns and continues without this check.
 - **Saving:** all aliases are saved in a single `bw import`. If generation fails partway, the ones already generated are still saved.
 
 ## Notes

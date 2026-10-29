@@ -3,7 +3,6 @@
 use crate::error::Result;
 use reqwest::StatusCode;
 use serde::Deserialize;
-use std::io::{self, Write};
 use std::time::Duration;
 
 const BASE: &str = "https://quack.duckduckgo.com/api";
@@ -44,11 +43,7 @@ pub async fn generate_alias(client: &reqwest::Client, access_token: &str) -> Res
             return parse(response).await;
         }
 
-        let _ = writeln!(
-            io::stderr(),
-            "Rate limited; retrying in {}s",
-            backoff.as_secs()
-        );
+        status!("Rate limited; retrying in {}s", backoff.as_secs());
         tokio::time::sleep(backoff).await;
         backoff = backoff.saturating_mul(2);
     }
