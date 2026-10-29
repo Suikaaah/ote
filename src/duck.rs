@@ -8,7 +8,10 @@ use std::time::Duration;
 const BASE: &str = "https://quack.duckduckgo.com/api";
 
 /// Pause between consecutive aliases. At least 1s, so timestamps in item names differ.
-pub const COOLDOWN: Duration = Duration::from_secs(3);
+pub const COOLDOWN: Duration = Duration::from_secs(2);
+
+/// Per-request timeout, so a stalled connection fails instead of hanging.
+pub const TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Retries on HTTP 429, waiting `BACKOFF`, then twice as long each time.
 const MAX_RETRIES: u32 = 4;

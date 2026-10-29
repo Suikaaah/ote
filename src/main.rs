@@ -59,7 +59,7 @@ async fn run() -> Result<()> {
 
     // Unlock before generating, so a wrong password doesn't strand new aliases.
     let mut vault = bitwarden::Vault::unlock()?;
-    let client = reqwest::Client::builder().build()?;
+    let client = reqwest::Client::builder().timeout(duck::TIMEOUT).build()?;
 
     // DDG returns addresses you already have instead of an error once the
     // limit is reached, so stop at the first one repeated in this run or

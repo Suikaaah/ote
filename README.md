@@ -31,7 +31,7 @@ export DDG_TOKEN=...
 
 ```sh
 ote        # one alias
-ote 5      # up to five aliases, requested ~3s apart
+ote 5      # up to five aliases, requested ~2s apart
 ```
 
 ```

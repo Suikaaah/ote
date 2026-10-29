@@ -2,7 +2,7 @@ use std::io;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("HTTP error: {0}")]
+    #[error("HTTP error: {}{}", .0, if .0.is_timeout() { " (timed out)" } else { "" })]
     Http(#[from] reqwest::Error),
 
     #[error("I/O error: {0}")]
